@@ -155,6 +155,7 @@ export default function App() {
   const handleLogin = async (username, password) => {
     await loginUser(username, password);
     setIsAuthenticated(true);
+    window.location.reload();
   };
 
   const handleRegister = async (userData) => {
@@ -178,6 +179,7 @@ export default function App() {
     setTasks([]);
     setHistory([]);
     setUserName('');
+    window.location.reload();
   };
 
   // --- VIEWS ---
