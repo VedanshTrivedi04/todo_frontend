@@ -13,7 +13,9 @@ import HistoryView from "./pages/History";
 import ChangePassword from "./pages/ChangePassword";
 import Profile from "./pages/Profile";
 import SidebarItem from "./components/SidebarItem";
-import { loginUser, logoutUser, getStoredToken, fetchTodos, createTodo, updateTodo, deleteTodo, fetchUser, updateUserInfo, createUser, changePassword, resetPasswordUnauthenticated } from "./api";
+import SplashScreen from "./components/SplashScreen";
+import Loader from "./components/Loader";
+import { loginUser, logoutUser, getStoredToken, fetchTodos, createTodo, updateTodo, deleteTodo, fetchUser, updateUserInfo, createUser, changePassword, resetPasswordUnauthenticated, keepAlive } from "./api";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!getStoredToken());
@@ -21,6 +23,7 @@ export default function App() {
   const [authView, setAuthView] = useState('login'); // 'login' or 'register'
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
 
   const [tasks, setTasks] = useState([]);
   const [history, setHistory] = useState([]);
@@ -76,6 +79,16 @@ export default function App() {
       console.error('Failed to fetch user:', err);
     }
   };
+
+  // Keep server awake 
+  // Ping the backend every 40 seconds (40000 ms)
+  useEffect(() => {
+    keepAlive(); // Initial ping
+    const interval = setInterval(() => {
+      keepAlive();
+    }, 40000);
+    return () => clearInterval(interval);
+  }, []);
 
   // History logger (client-side only)
   const logHistory = (taskId, taskTitle, action) => {
@@ -155,7 +168,7 @@ export default function App() {
   const handleLogin = async (username, password) => {
     await loginUser(username, password);
     setIsAuthenticated(true);
-    window.location.reload();
+    setShowSplash(true);
   };
 
   const handleRegister = async (userData) => {
@@ -179,40 +192,10 @@ export default function App() {
     setTasks([]);
     setHistory([]);
     setUserName('');
-    window.location.reload();
+    setShowSplash(true);
   };
 
   // --- VIEWS ---
-
-  if (!isAuthenticated) {
-    if (authView === 'register') {
-      return (
-        <Register
-          onRegister={handleRegister}
-          onBackToLogin={() => setAuthView('login')}
-          isDarkMode={isDarkMode}
-        />
-      );
-    }
-    if (authView === 'forgot') {
-      return (
-        <ForgotPassword
-          onResetPassword={resetPasswordUnauthenticated}
-          onBackToLogin={() => setAuthView('login')}
-          isDarkMode={isDarkMode}
-        />
-      );
-    }
-    return (
-      <Login
-        onLogin={handleLogin}
-        isDarkMode={isDarkMode}
-        toggleTheme={() => setIsDarkMode(!isDarkMode)}
-        onGoToRegister={() => setAuthView('register')}
-        onGoToForget={() => setAuthView('forgot')}
-      />
-    );
-  }
 
   const activeTasks = tasks.filter(t => !t.completed);
   const completedTasks = tasks.filter(t => t.completed);
@@ -245,12 +228,16 @@ export default function App() {
       setNotifications(due);
 
       // Browser notification for tasks due soon
-      if (due.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
-        due.forEach(n => {
-          if (n.minutesLeft <= 5) {
-            new Notification('Task Due Soon!', { body: `"${n.title}" is due in ${n.minutesLeft} minute(s)`, icon: '/vite.svg' });
-          }
-        });
+      try {
+        if (due.length > 0 && 'Notification' in window && window.Notification && Notification.permission === 'granted') {
+          due.forEach(n => {
+            if (n.minutesLeft <= 5) {
+              new Notification('Task Due Soon!', { body: `"${n.title}" is due in ${n.minutesLeft} minute(s)`, icon: '/vite.svg' });
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Notification API not fully supported:', e);
       }
     };
     checkDue();
@@ -258,15 +245,53 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isAuthenticated, tasks]);
 
-  // Request notification permission
+  // Request notification permission safely
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
+    try {
+      if ('Notification' in window && window.Notification && Notification.permission === 'default') {
+        Notification.requestPermission().catch(e => console.warn('Failed to request notification permission:', e));
+      }
+    } catch (e) {
+      console.warn('Notification API not supported on this platform:', e);
     }
   }, []);
 
   // Get user initials for avatar
   const userInitials = userName ? userName.slice(0, 2).toUpperCase() : 'U';
+
+  if (showSplash) {
+    return <SplashScreen isDarkMode={isDarkMode} onFinish={() => setShowSplash(false)} />;
+  }
+
+  if (!isAuthenticated) {
+    if (authView === 'register') {
+      return (
+        <Register
+          onRegister={handleRegister}
+          onBackToLogin={() => setAuthView('login')}
+          isDarkMode={isDarkMode}
+        />
+      );
+    }
+    if (authView === 'forgot') {
+      return (
+        <ForgotPassword
+          onResetPassword={resetPasswordUnauthenticated}
+          onBackToLogin={() => setAuthView('login')}
+          isDarkMode={isDarkMode}
+        />
+      );
+    }
+    return (
+      <Login
+        onLogin={handleLogin}
+        isDarkMode={isDarkMode}
+        toggleTheme={() => setIsDarkMode(!isDarkMode)}
+        onGoToRegister={() => setAuthView('register')}
+        onGoToForget={() => setAuthView('forgot')}
+      />
+    );
+  }
 
   return (
     <div className={`flex h-screen w-full bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300 overflow-hidden`}>
@@ -411,10 +436,11 @@ export default function App() {
 
         {/* Dynamic View Content */}
         <div className="flex-1 overflow-y-auto p-6 lg:p-10 scroll-smooth">
-          <div className="max-w-4xl mx-auto w-full">
+          <div className="max-w-4xl mx-auto w-full h-full">
             {loading ? (
-              <div className="text-center py-16 text-slate-500 dark:text-slate-400">
-                Loading tasks...
+              <div className="flex flex-col items-center justify-center h-full min-h-[400px]">
+                <Loader size="lg" />
+                <p className="mt-4 text-sm font-medium text-slate-500 dark:text-slate-400 animate-pulse">Syncing tasks...</p>
               </div>
             ) : (
               <>

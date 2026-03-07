@@ -1,4 +1,4 @@
-package todo.app;
+package TaskFlow.app;
 
 import com.getcapacitor.BridgeActivity;
 

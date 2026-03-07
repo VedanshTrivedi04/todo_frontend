@@ -1,5 +1,5 @@
 {
-  "appId": "todo.app",
-  "appName": "Todo ",
+  "appId": "TaskFlow.app",
+  "appName": "TaskFlow",
   "webDir": "dist"
 }

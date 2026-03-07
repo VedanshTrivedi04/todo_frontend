@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CheckSquare, User, Eye, EyeOff, ChevronRight, Mail, ArrowLeft } from "lucide-react";
+import Loader from "../components/Loader";
 
 export default function Register({ onRegister, onBackToLogin, isDarkMode }) {
   const [form, setForm] = useState({
@@ -189,8 +190,17 @@ export default function Register({ onRegister, onBackToLogin, isDarkMode }) {
               disabled={isLoading}
               className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium shadow-md shadow-indigo-600/20 hover:shadow-lg hover:shadow-indigo-600/30 hover:-translate-y-0.5 transition-all duration-200 mt-2 flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:translate-y-0"
             >
-              {isLoading ? 'Creating Account...' : 'Create Account'}
-              {!isLoading && <ChevronRight size={18} />}
+              {isLoading ? (
+                <>
+                  <Loader size="sm" />
+                  <span>Creating Account...</span>
+                </>
+              ) : (
+                <>
+                  <span>Create Account</span>
+                  <ChevronRight size={18} />
+                </>
+              )}
             </button>
           </form>
 

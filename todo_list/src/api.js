@@ -141,4 +141,15 @@ export async function resetPasswordUnauthenticated(username, oldPassword, newPas
   }
 }
 
+// --- Keep Alive ---
+export async function keepAlive() {
+  try {
+    // Ping the backend to prevent Render free tier from sleeping
+    await api.get('/docs'); // /docs is a default FastAPI endpoint that returns 200 OK
+  } catch (error) {
+    // Ignore expected 401/404 errors, as any request keeps the server awake
+    console.debug('Keep-alive ping sent.');
+  }
+}
+
 export default api;
